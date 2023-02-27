@@ -311,6 +311,8 @@ non-nil and point is inside the argument of a \"\\ref{}\" macro."
   (interactive "P")
   (quick-latex-ref 'down only-label))
 
+(provide 'quick-latex-ref)
+
 ;;; _
 ;; Local Variables:
 ;; indent-tabs-mode: nil
