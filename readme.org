@@ -1,0 +1,74 @@
+#+title: Quick LaTeX Ref
+#+author: Enrico Flor
+
+While writing in LaTeX, you often want to reference (through the ~\ref~
+macro) things just above or just below point.  Some LaTeX packages
+offer special macros that are always expanded in this sense (for
+example, a macro ~\Next~ that expands into a ~\ref{LABEL}~ if the first
+label macro after ~\Next~ is ~\label{LABEL}~).
+
+However, this is somewhat of an antipattern: it is a convenient
+feature (because so often you want to refer to something close to
+point), but it can cause serious headaches if you happen to
+restructure the text where these references occur.  It may be very
+hard to notice that the reference you intended is now different
+because a different ~\label~ than the one you intended to refer to
+intervenes between the ~\Next~ macro and the item it should refer to.
+The convenience provided by these macros is better delivered by your
+text editor (ideally, GNU Emacs).
+
+This functionality is what this package provides.
+There are three entry points (three interactive commands):
+
++ ~quick-latex-ref~
++ ~quick-latex-ref-previous~
++ ~quick-latex-ref-next~
+
+
+If you want to refer to the first ~\label~ following point, call
+~quick-late-ref-next~: the appropriate ~\ref~ macro will be inserted.  The
+opposite effect of course is obtained by ~quick-latex-ref-previous~.
+Note that these commands will retrieve the closest ~\label~ even if that
+occurs in a hidden section (e.g. folded by ~outline-mode~) or outside
+the narrowed portion of the buffer.
+
+Once you call any of these commands you actually enter a loop, whereby
+you can "walk" up and down the ~\label~ macros in the buffer through the
+characters you can set as the values of these two variables:
+
++ ~quick-latex-ref-previous-key~ (~p~ by default)
++ ~quick-latex-ref-next-key~ (~n~ by default).
+
+If you want to use ~k~ and ~j~ instead, for example, add this to your
+configuration:
+
+#+begin_src emacs-lisp
+(setq quick-latex-ref-previous-key ?k
+      quick-latex-ref-next-key ?j)
+#+end_src
+
+#+CAPTION: quick-latex-ref in action
+#+NAME:   fig:quick-latex-ref-demo
+[[./quick-latex-ref-demo.gif]]
+
+All three of these commands can be called with the prefix argument, in
+which case only the label itself (i.e., the argument of the ~\label~
+macro) is inserted at point.  Furthermore, if the variable
+~quick-latex-ref-only-label-if-in-argument~ is set to ~t~ (as it is by
+default), only the label (and not a full ~\ref~ macro) is inserted if
+point is already inside the braces that determine the argument of a
+~\ref~ macro.
+
+As you can see in the gif, ~\label~ macros that are in comments are
+completely ignored.  If the variable ~quick-latex-ref-show-context~ is ~t~
+(as per default), the context of the current ~\label~ candidate is shown
+in the echo area, to help you determine whether that is indeed the
+label you are interested in.  The context is the three lines (visual
+lines, if you are in ~visual-line-mode~) where the candidate ~\label~ is
+in.
+
+The faces that highlight the expression at point (either the label or
+the whole ~\ref~ macro) and the current target ~\label~ macro are defined
+as the values of ~quick-latex-ref-at-point~ and
+~quick-latex-current-target~ respectively.  By default, they are the
+same face with which the current theme treats the active region.
