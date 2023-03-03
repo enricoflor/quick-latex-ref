@@ -5,7 +5,7 @@
 ;; Author: Enrico Flor <enrico@eflor.net>
 ;; Maintainer: Enrico Flor <enrico@eflor.net>
 ;; URL: https://github.com/enricoflor/quick-latex-ref
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Keywords: convenience
 
 ;; Package-Requires: ((emacs "27.1") (auctex "12.1"))
@@ -272,7 +272,7 @@ can be repeated as much as needed to target the desired
             (let* ((ch (read-key))
                    (pr (eq ch quick-latex-ref-previous-key))
                    (nx (eq ch quick-latex-ref-next-key)))
-              (delete-overlay targ-ol)
+              (when targ-ol (delete-overlay targ-ol))
               (cond (pr (setq dir 'up))
                     (nx (setq dir 'down))
                     (t (setq reading-chars nil)
