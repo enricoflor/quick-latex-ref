@@ -5,7 +5,7 @@
 ;; Author: Enrico Flor <enrico@eflor.net>
 ;; Maintainer: Enrico Flor <enrico@eflor.net>
 ;; URL: https://github.com/enricoflor/quick-latex-ref
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Keywords: convenience
 
 ;; Package-Requires: ((emacs "27.1") (auctex "12.1"))
@@ -213,12 +213,17 @@ can be repeated as much as needed to target the desired
          (ind-buffer (clone-indirect-buffer nil nil t))
          (index 0)
          (between-braces (and quick-latex-ref-only-label-if-in-argument
-                              (looking-at-p "[^}]*}")
-                              (looking-back "\\\\ref[[:space:]]*{[^{]*"
-                                            (line-beginning-position))
                               (save-excursion
-                                (goto-char (match-beginning 0))
-                                (not (TeX-escaped-p)))))
+                                (let ((beg (line-beginning-position))
+                                      (p (point))
+                                      par)
+                                  (when (search-backward "\\ref" beg t)
+                                    (unless (TeX-escaped-p)
+                                      (search-forward "{")
+                                      (forward-char -1)
+                                      (setq par (point))
+                                      (ignore-errors (forward-sexp 1))
+                                      (< par p (point))))))))
          (message-log-max 0)
          (dir (or direction
                   (let ((k (read-key instr)))
