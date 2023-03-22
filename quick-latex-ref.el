@@ -5,7 +5,7 @@
 ;; Author: Enrico Flor <enrico@eflor.net>
 ;; Maintainer: Enrico Flor <enrico@eflor.net>
 ;; URL: https://github.com/enricoflor/quick-latex-ref
-;; Version: 0.1.2
+;; Version: 0.2.0
 ;; Keywords: convenience
 
 ;; Package-Requires: ((emacs "27.1") (auctex "12.1"))
@@ -82,6 +82,13 @@
 ;; the same face that the theme you are using uses to highlight the
 ;; active region).
 
+;; There is a third action you can take while being in the loop,
+;; through the character specified as the value of
+;; quick-latex-ref-goto-key ("." by default).  This will move point to
+;; the currently selected label, save the original position (from
+;; which you entered the loop) in the mark ring, and undo any
+;; insertion there.
+
 ;;; Code:
 
 (require 'tex)
@@ -106,6 +113,12 @@ previous label in the loop entered by `quick-latex-ref-previous',
 The value of this variable must be a character to select the next
 label in the loop entered by `quick-latex-ref-previous',
 `quick-latex-ref-next' or `quick-latex-ref'."
+  :type 'character)
+
+(defcustom quick-latex-ref-goto-key ?.
+  "Go to currently selected label.
+
+The value of this variable must be a character."
   :type 'character)
 
 (defcustom quick-latex-ref-show-context t
@@ -201,6 +214,7 @@ whether DIRECTION is \\='up\\=' or \\='down\\=' respectively.
 can be repeated as much as needed to target the desired
 \"\\label\" macro."
   (interactive "P")
+  (push-mark)
   (let* ((instr (format "%s to go back, %s to go forward\n"
                         (key-description
                          (if (vectorp quick-latex-ref-previous-key)
@@ -273,19 +287,24 @@ can be repeated as much as needed to target the desired
                   (save-excursion
                     (delete-region (1+ lab-left-marker) (1- lab-right-marker))
                     (goto-char (1+ lab-left-marker))
-                    (insert lab)))))
-            (let* ((ch (read-key))
-                   (pr (eq ch quick-latex-ref-previous-key))
-                   (nx (eq ch quick-latex-ref-next-key)))
-              (when targ-ol (delete-overlay targ-ol))
-              (cond (pr (setq dir 'up))
-                    (nx (setq dir 'down))
-                    (t (setq reading-chars nil)
-                       (when (and (characterp ch)
-                                  (eq 'self-insert-command
-                                      (lookup-key global-map
-                                                  (char-to-string ch))))
-                         (funcall #'self-insert-command 1 ch))))))
+                    (insert lab))))
+              (let* ((ch (read-key))
+                     (gt (eq ch quick-latex-ref-goto-key))
+                     (pr (eq ch quick-latex-ref-previous-key))
+                     (nx (eq ch quick-latex-ref-next-key)))
+                (when targ-ol (delete-overlay targ-ol))
+                (cond (gt (setq reading-chars nil)
+                          (goto-char (nth 2 res))
+                          (when (invisible-p (nth 2 res)) (outline-show-entry))
+                          (delete-region b e))
+                      (pr (setq dir 'up))
+                      (nx (setq dir 'down))
+                      (t (setq reading-chars nil)
+                         (when (and (characterp ch)
+                                    (eq 'self-insert-command
+                                        (lookup-key global-map
+                                                    (char-to-string ch))))
+                           (funcall #'self-insert-command 1 ch)))))))
         (kill-buffer ind-buffer)
         (delete-region (point) (1+ (point)))
         (delete-overlay at-point-ol)))))

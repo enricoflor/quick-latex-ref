@@ -24,7 +24,6 @@ There are three entry points (three interactive commands):
 + ~quick-latex-ref-previous~
 + ~quick-latex-ref-next~
 
-
 If you want to refer to the first ~\label~ following point, call
 ~quick-late-ref-next~: the appropriate ~\ref~ macro will be inserted.  The
 opposite effect of course is obtained by ~quick-latex-ref-previous~.
@@ -72,3 +71,18 @@ the whole ~\ref~ macro) and the current target ~\label~ macro are defined
 as the values of ~quick-latex-ref-at-point~ and
 ~quick-latex-current-target~ respectively.  By default, they are the
 same face with which the current theme treats the active region.
+
+There is a third action you can take while being in the loop, through
+the character specified as the value of ~quick-latex-ref-goto-key~ (~.~ by
+default).  This action will do the following things:
+
++ move point to the buffer position corresponding to the currently
+  selected label;
++ exit the loop;
++ undo any insertion that was done after entering the loop you just
+  exited.
+
+Remember that whenever the loop is entered with any of the three above
+interactive commands, the position of point is pushed to the mark
+ring, so that you can easily return to that point after exiting the
+loop somewhere else in the buffer.
