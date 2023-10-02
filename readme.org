@@ -59,12 +59,21 @@ point is already inside the braces that determine the argument of a
 ~\ref~ macro.
 
 As you can see in the gif, ~\label~ macros that are in comments are
-completely ignored.  If the variable ~quick-latex-ref-show-context~ is ~t~
-(as per default), the context of the current ~\label~ candidate is shown
-in the echo area, to help you determine whether that is indeed the
-label you are interested in.  The context is the three lines (visual
-lines, if you are in ~visual-line-mode~) where the candidate ~\label~ is
-in.
+completely ignored, and so are the ones that have a blank argument
+(that is, have no label).  If the variable
+~quick-latex-ref-show-context~ is ~t~ (as per default), the context of the
+current ~\label~ candidate is shown in the echo area, to help you
+determine whether that is indeed the label you are interested in.  The
+context is the three lines (visual lines, if you are in
+~visual-line-mode~) where the candidate ~\label~ is in.
+
+The value of ~quick-latex-ref-show-context~ is ignored if the value of
+quick-latex-ref-move-point is set to ~t~ (default is ~nil~), in which case
+the point in the buffer will move along with your search, rendering
+the echoing of the label's context in the echo area useless.  If you
+set ~quick-latex-ref-move-point~ to ~t~, point will return where it was
+when you entered the loop, when you exit in any way other than by
+choosing to go to the selected label (more on this below).
 
 The faces that highlight the expression at point (either the label or
 the whole ~\ref~ macro) and the current target ~\label~ macro are defined
@@ -72,8 +81,13 @@ as the values of ~quick-latex-ref-at-point~ and
 ~quick-latex-current-target~ respectively.  By default, they are the
 same face with which the current theme treats the active region.
 
-There is a third action you can take while being in the loop, through
-the character specified as the value of ~quick-latex-ref-goto-key~ (~.~ by
+When you have found the label you were looking for, you can select it
+and exit the loop by entering the character that is the value of
+~quick-latex-ref-select-key~ (~?\s~ by default, which corresponds to
+white space).
+
+A fourth action you can take while being in the loop, through the
+character specified as the value of ~quick-latex-ref-goto-key~ (~.~ by
 default).  This action will do the following things:
 
 + move point to the buffer position corresponding to the currently
@@ -81,6 +95,15 @@ default).  This action will do the following things:
 + exit the loop;
 + undo any insertion that was done after entering the loop you just
   exited.
+
+While in the loop, entering any self-insertable character that is not
+the value of ~quick-latex-ref-previous-key~, ~quick-latex-ref-next-key~,
+~quick-latex-ref-select-key~ or ~quick-latex-ref-goto-key~ will have the
+same effect as accepting the currently selected label.  Any other
+action (for example, ~keyboard-quit~, to which ~C-g~ is bound by default),
+will leave or return point to the position it was when the loop was
+entered and any modification done to the buffer since is effectively
+undone.
 
 Remember that whenever the loop is entered with any of the three above
 interactive commands, the position of point is pushed to the mark

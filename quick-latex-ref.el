@@ -5,7 +5,7 @@
 ;; Author: Enrico Flor <enrico@eflor.net>
 ;; Maintainer: Enrico Flor <enrico@eflor.net>
 ;; URL: https://github.com/enricoflor/quick-latex-ref
-;; Version: 0.2.2
+;; Version: 0.3.0
 ;; Keywords: convenience
 
 ;; Package-Requires: ((emacs "27.1") (auctex "12.1"))
@@ -66,13 +66,23 @@
 ;; + quick-latex-ref-previous-key ("p" by default)
 ;; + quick-latex-ref-next-key ("n" by default).
 
-;; "\label" macros that are in comments are completely ignored.  If
-;; the variable quick-latex-ref-show-context is non-nil (as per
+;; "\label" macros that are in comments are completely ignored, and so
+;; are the ones that have a blank argument (that is, have no label).
+;; If the variable quick-latex-ref-show-context is non-nil (as per
 ;; default), the context of the current "\label" candidate is shown in
 ;; the echo area, to help you determine whether that is indeed the
 ;; label you are interested in.  The context is the three lines
 ;; (visual lines, if you are in visual-line-mode) where the candidate
 ;; "\label" is in.
+
+;; The value of quick-latex-ref-show-context is ignored if the value
+;; of quick-latex-ref-move-point is set to non nil (which is the
+;; default), in which case the point in the buffer will move along
+;; with your search, rendering the echoing of the label's context in
+;; the echo area useless.  If you set quick-latex-ref-move-point to
+;; non nil, point will return where it was when you entered the loop,
+;; when you exit in any way other than by choosing to go to the
+;; selected label (more on this below).
 
 ;; The buffer is immediately updated with the appropriate "\ref" macro
 ;; at point as you walk up and down the list of labels.  Both the
@@ -82,12 +92,16 @@
 ;; the same face that the theme you are using uses to highlight the
 ;; active region).
 
-;; There is a third action you can take while being in the loop,
-;; through the character specified as the value of
-;; quick-latex-ref-goto-key ("." by default).  This will move point to
-;; the currently selected label, save the original position (from
-;; which you entered the loop) in the mark ring, and undo any
-;; insertion there.
+;; When you have found the label you were looking for, you can select
+;; it and exit the loop by entering the character that is the value of
+
+;; + quick-latex-ref-select-key ("SPC" by default).
+
+;; A fourth action you can take while being in the loop, through the
+;; character specified as the value of quick-latex-ref-goto-key ("."
+;; by default).  This will move point to the currently selected label,
+;; save the original position (from which you entered the loop) in the
+;; mark ring, and undo any insertion there.
 
 ;;; Code:
 
@@ -119,11 +133,36 @@ label in the loop entered by `quick-latex-ref-previous',
 (defcustom quick-latex-ref-goto-key ?.
   "Go to currently selected label.
 
-The value of this variable must be a character."
+The value of this variable must be a character to move point to
+the label currently selected in the loop entered by
+`quick-latex-ref-previous', `quick-latex-ref-next' or
+`quick-latex-ref'."
+  :type 'character)
+
+(defcustom quick-latex-ref-select-key ?\s
+  "Accept currenctly selected label.
+
+The value of this variable must be a character to accept the
+label currently selected in the loop entered by
+`quick-latex-ref-previous', `quick-latex-ref-next' or
+`quick-latex-ref'."
   :type 'character)
 
 (defcustom quick-latex-ref-show-context t
-  "If t, show context of candidate label in the echo area."
+  "If t, show context of candidate label in the echo area.
+
+If the value of `quick-latex-ref-move-point' is non nil (which is
+the default), whatever value you assign to the present variable
+is ignored and assumed to be nil: there is no use of information
+in the echo area if point in the current buffer moves along your
+search."
+  :type 'boolean)
+
+(defcustom quick-latex-ref-move-point t
+  "If t, move point to labels as you search through them.
+
+A t value for this variable makes it so that the value of
+`quick-latex-ref-show-context' is ignored, and assumed to be nil."
   :type 'boolean)
 
 (defcustom quick-latex-ref-only-label-if-in-argument t
@@ -165,26 +204,26 @@ The return value is a list of four elements:
 string, if `quick-latex-ref-show-context' is nil, otherwise the
 lines containing the \"\\label\" macro (visual lines, if
 `visual-line-mode' is non nil)."
-  (let ((fn (lambda ()
-              (TeX-search-unescaped "\\(\\\\label\\){[[:space:]]*[^}]"
-                                    direction t nil t)))
+  (let ((fn `(TeX-search-unescaped "\\(\\\\label\\){[[:space:]]*[^}]"
+                                  ',direction t nil t))
         inv lab found targ-b targ-e)
     (with-current-buffer buf
       (widen)
       (when outline-minor-mode (outline-show-all))
-      (setq found (funcall fn))
+      (setq found (eval fn))
       (while (TeX-in-comment)
-        (setq found (funcall fn)))
+        (setq found (eval fn)))
       (when found
-        (setq targ-b (match-beginning 0))
-        (goto-char (1- (match-end 0)))
+        (setq targ-b (match-beginning 1))
+        (goto-char (match-end 1))
         (setq lab (string-trim
                    (buffer-substring (point)
                                      (save-excursion (forward-sexp)
                                                      (setq targ-e (point))))
                    "{" "}"))
         (list lab targ-b targ-e
-              (when quick-latex-ref-show-context
+              (when (and (not quick-latex-ref-move-point)
+                         quick-latex-ref-show-context)
                 (let ((context-b (save-excursion (beginning-of-visual-line 0)))
                       (context-e (save-excursion (end-of-visual-line 2)
                                                  (point))))
@@ -219,7 +258,7 @@ can be repeated as much as needed to target the desired
 \"\\label\" macro."
   (interactive "P")
   (push-mark)
-  (let* ((instr (format "%s to go back, %s to go forward\n"
+  (let* ((instr (format "%s to go back, %s to go forward, %s to go to label, %s to accept label\n"
                         (key-description
                          (if (vectorp quick-latex-ref-previous-key)
                              quick-latex-ref-previous-key
@@ -227,7 +266,15 @@ can be repeated as much as needed to target the desired
                         (key-description
                          (if (vectorp quick-latex-ref-next-key)
                              quick-latex-ref-next-key
-                           (vector quick-latex-ref-next-key)))))
+                           (vector quick-latex-ref-next-key)))
+                        (key-description
+                         (if (vectorp quick-latex-ref-goto-key)
+                             quick-latex-ref-goto-key
+                           (vector quick-latex-ref-goto-key)))
+                        (key-description
+                         (if (vectorp quick-latex-ref-select-key)
+                             quick-latex-ref-select-key
+                           (vector quick-latex-ref-select-key)))))
          (ind-buffer (clone-indirect-buffer nil nil t))
          (index 0)
          (between-braces (and quick-latex-ref-only-label-if-in-argument
@@ -254,14 +301,14 @@ can be repeated as much as needed to target the desired
                                        (abs i)
                                        (if (< i 0) "up" "down"))))
          (b (point-marker)) e lab-left-marker lab-right-marker)
-    (insert (if (or only-label between-braces) " " "\\ref{} "))
+    (insert (if (or only-label between-braces) " " "\\ref{}"))
     (setq e (point-marker))
-    (forward-char -1)
     (unless (or only-label between-braces)
       (setq lab-right-marker (point-marker))
       (setq lab-left-marker
             (save-excursion (forward-sexp -1) (point-marker))))
-    (let ((at-point-ol (make-overlay b e)) targ-ol)
+    (let ((at-point-ol (make-overlay b e))
+          went-to targ-ol)
       (overlay-put at-point-ol 'face 'quick-latex-ref-at-point)
       (unwind-protect
           (while reading-chars
@@ -288,26 +335,36 @@ can be repeated as much as needed to target the desired
                   (save-excursion
                     (delete-region (1+ lab-left-marker) (1- lab-right-marker))
                     (goto-char (1+ lab-left-marker))
-                    (insert lab))))
+                    (insert lab)))
+                (when quick-latex-ref-move-point
+                  (goto-char (nth 2 res))
+                  (when (invisible-p (point)) (outline-show-entry))))
               (let* ((ch (read-key))
                      (gt (eq ch quick-latex-ref-goto-key))
                      (pr (eq ch quick-latex-ref-previous-key))
-                     (nx (eq ch quick-latex-ref-next-key)))
+                     (nx (eq ch quick-latex-ref-next-key))
+                     (sl (eq ch quick-latex-ref-select-key)))
                 (when targ-ol (delete-overlay targ-ol))
-                (cond (gt (setq reading-chars nil)
+                (cond (gt (setq reading-chars nil
+                                went-to t)
                           (goto-char (nth 2 res))
                           (when (invisible-p (nth 2 res)) (outline-show-entry))
                           (delete-region b e))
                       (pr (setq dir 'backward))
                       (nx (setq dir 'forward))
+                      (sl (setq reading-chars nil)
+                          (when quick-latex-ref-move-point (goto-char e)))
                       (t (setq reading-chars nil)
-                         (when (and (characterp ch)
-                                    (eq 'self-insert-command
-                                        (lookup-key global-map
-                                                    (char-to-string ch))))
-                           (funcall #'self-insert-command 1 ch)))))))
+                         (when quick-latex-ref-move-point (goto-char e))
+                         (if (and (characterp ch)
+                                  (eq 'self-insert-command
+                                      (lookup-key global-map
+                                                  (char-to-string ch))))
+                             (progn (funcall #'self-insert-command 1 ch)
+                                    (setq e (point)))
+                           (delete-region b e)))))))
         (kill-buffer ind-buffer)
-        (delete-region (point) (1+ (point)))
+        (unless went-to (goto-char e))
         (delete-overlay at-point-ol)))))
 
 (defun quick-latex-ref-previous (&optional only-label)
