@@ -5,7 +5,7 @@
 ;; Author: Enrico Flor <enrico@eflor.net>
 ;; Maintainer: Enrico Flor <enrico@eflor.net>
 ;; URL: https://github.com/enricoflor/quick-latex-ref
-;; Version: 0.2.1
+;; Version: 0.2.2
 ;; Keywords: convenience
 
 ;; Package-Requires: ((emacs "27.1") (auctex "12.1"))
@@ -127,11 +127,10 @@ The value of this variable must be a character."
   :type 'boolean)
 
 (defcustom quick-latex-ref-only-label-if-in-argument t
-  "If t, `quick-latex-ref' inserts only a label if point is between
-curly braces."
+  "If t, insert no label unless point is between curly braces."
   :type 'boolean)
 
-(defface quick-latex-current-target '((nil :inherit region))
+(defface quick-latex-ref-current-target '((nil :inherit region))
   "Face for highlighting the currently selected \\label macro.
 
 See Info node `(emacs) Face Customization' for more information
@@ -166,16 +165,16 @@ The return value is a list of four elements:
 string, if `quick-latex-ref-show-context' is nil, otherwise the
 lines containing the \"\\label\" macro (visual lines, if
 `visual-line-mode' is non nil)."
-  (let ((fn (if (eq direction 'backward)
-                #'TeX-search-backward-unescaped
-              #'TeX-search-forward-unescaped))
+  (let ((fn (lambda ()
+              (TeX-search-unescaped "\\(\\\\label\\){[[:space:]]*[^}]"
+                                    direction t nil t)))
         inv lab found targ-b targ-e)
     (with-current-buffer buf
       (widen)
       (when outline-minor-mode (outline-show-all))
-      (setq found (funcall fn "\\label{" nil t))
+      (setq found (funcall fn))
       (while (TeX-in-comment)
-        (setq found (funcall fn "\\label{" nil t)))
+        (setq found (funcall fn)))
       (when found
         (setq targ-b (match-beginning 0))
         (goto-char (1- (match-end 0)))
@@ -278,7 +277,7 @@ can be repeated as much as needed to target the desired
                                              "next")
                                    " label" ctxt))
                 (setq targ-ol (make-overlay targ-b targ-e))
-                (overlay-put targ-ol 'face 'quick-latex-current-target)
+                (overlay-put targ-ol 'face 'quick-latex-ref-current-target)
                 (setq index (if (eq dir 'forward) (1+ index) (1- index)))
                 (when (= index 0)
                   (if (eq dir 'forward) (setq index 1) (setq index -1)))
