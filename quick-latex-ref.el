@@ -5,7 +5,7 @@
 ;; Author: Enrico Flor <enrico@eflor.net>
 ;; Maintainer: Enrico Flor <enrico@eflor.net>
 ;; URL: https://github.com/enricoflor/quick-latex-ref
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Keywords: convenience
 
 ;; Package-Requires: ((emacs "27.1") (auctex "12.1"))
@@ -91,6 +91,7 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'subr-x))
 (require 'tex)
 (require 'latex)
 
@@ -175,20 +176,19 @@ The return value is a list of four elements:
         (setq targ-b (match-beginning 0))
         (goto-char (1- (match-end 0)))
         (setq lab (string-trim
-                   (buffer-substring-no-properties
-                    (point)
-                    (save-excursion (forward-sexp)
-                                    (setq targ-e (point))))
+                   (buffer-substring (point)
+                                     (save-excursion (forward-sexp)
+                                                     (setq targ-e (point))))
                    "{" "}"))
         (list lab targ-b targ-e
-              (if (not quick-latex-ref-show-context)
-                  ""
-                (concat "\n\n" (buffer-substring-no-properties
-                                (save-excursion
-                                  (beginning-of-visual-line 0))
-                                (save-excursion
-                                  (end-of-visual-line 2)
-                                  (point))))))))))
+              (when quick-latex-ref-show-context
+                (let ((context-b (save-excursion (beginning-of-visual-line 0)))
+                      (context-e (save-excursion (end-of-visual-line 2)
+                                                 (point))))
+                  (thread-last (buffer-substring context-b context-e)
+                               (string-trim)
+                               (replace-regexp-in-string "%" "%%")
+                               (concat "\n\n")))))))))
 
 (defun quick-latex-ref (&optional direction only-label)
   "Insert a reference at point.
@@ -249,16 +249,11 @@ can be repeated as much as needed to target the desired
          (count-fn (lambda (i) (format "%s labels %s"
                                        (abs i)
                                        (if (< i 0) "up" "down"))))
-         b e lab-left-marker lab-right-marker)
-    (if (or only-label between-braces)
-        (progn (setq b (point-marker))
-               (insert " ")
-               (setq e (point-marker))
-               (forward-char -1))
-      (setq b (point-marker))
-      (insert "\\ref{} ")
-      (setq e (point-marker))
-      (forward-char -1)
+         (b (point-marker)) e lab-left-marker lab-right-marker)
+    (insert (if (or only-label between-braces) " " "\\ref{} "))
+    (setq e (point-marker))
+    (forward-char -1)
+    (unless (or only-label between-braces)
       (setq lab-right-marker (point-marker))
       (setq lab-left-marker
             (save-excursion (forward-sexp -1) (point-marker))))
@@ -270,7 +265,7 @@ can be repeated as much as needed to target the desired
                    (lab (nth 0 res))
                    (targ-b (nth 1 res))
                    (targ-e (nth 2 res))
-                   (ctxt (nth 3 res)))
+                   (ctxt (or (nth 3 res) "")))
               (if (not lab)
                   (message (concat instr (funcall count-fn index)
                                    ", no " (if (eq dir 'up) "previous" "next")
