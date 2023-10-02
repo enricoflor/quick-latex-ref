@@ -150,20 +150,23 @@ all defined faces."
 (defun quick-latex-ref--get (buf direction)
   "Get information from the first label in direction DIRECTION.
 
-DIRECTION is either \\='up\\=' or \\='down\\='.
+DIRECTION is either \\='backward\\=' or \\='forward\\='.
 
 BUF is the buffer in which the search is performed.
 
 The return value is a list of four elements:
 
 + the label (the argument of the \"\\label\" macro, a string)
+
 + the beginning of the \"\\label\" macro (a buffer position)
+
 + the end of the \"\\label\" macro (a buffer position)
+
 + the context of the \"\\label\" macro (a string): an empty
-  string, if `quick-latex-ref-show-context' is nil, otherwise the
-  lines containing the \"\\label\" macro (visual lines, if
-  `visual-line-mode' is non nil)."
-  (let ((fn (if (eq direction 'up)
+string, if `quick-latex-ref-show-context' is nil, otherwise the
+lines containing the \"\\label\" macro (visual lines, if
+`visual-line-mode' is non nil)."
+  (let ((fn (if (eq direction 'backward)
                 #'TeX-search-backward-unescaped
               #'TeX-search-forward-unescaped))
         inv lab found targ-b targ-e)
@@ -171,7 +174,8 @@ The return value is a list of four elements:
       (widen)
       (when outline-minor-mode (outline-show-all))
       (setq found (funcall fn "\\label{" nil t))
-      (while (TeX-in-comment) (setq found (funcall fn "\\label{" nil t)))
+      (while (TeX-in-comment)
+        (setq found (funcall fn "\\label{" nil t)))
       (when found
         (setq targ-b (match-beginning 0))
         (goto-char (1- (match-end 0)))
@@ -208,7 +212,8 @@ user to choose the direction to move to (with the keys specified
 as the values of `quick-latex-ref-previous-key' and
 `quick-latex-ref-next-key').  Otherwise, start from the first
 \"\\label\" macro preceding, or following, point, depending on
-whether DIRECTION is \\='up\\=' or \\='down\\=' respectively.
+whether DIRECTION is \\='backward\\=' or \\='forward\\='
+respectively.
 
 `quick-latex-ref-previous-key' and `quick-latex-ref-next-key'
 can be repeated as much as needed to target the desired
@@ -241,8 +246,8 @@ can be repeated as much as needed to target the desired
          (message-log-max 0)
          (dir (or direction
                   (let ((k (read-key instr)))
-                    (cond ((eq k quick-latex-ref-previous-key) 'up)
-                          ((eq k quick-latex-ref-next-key) 'down)
+                    (cond ((eq k quick-latex-ref-previous-key) 'backward)
+                          ((eq k quick-latex-ref-next-key) 'forward)
                           (t (user-error (format "%s is an invalid choice"
                                                  (char-to-string k))))))))
          (reading-chars t)
@@ -268,13 +273,15 @@ can be repeated as much as needed to target the desired
                    (ctxt (or (nth 3 res) "")))
               (if (not lab)
                   (message (concat instr (funcall count-fn index)
-                                   ", no " (if (eq dir 'up) "previous" "next")
+                                   ", no " (if (eq dir 'backward)
+                                               "previous"
+                                             "next")
                                    " label" ctxt))
                 (setq targ-ol (make-overlay targ-b targ-e))
                 (overlay-put targ-ol 'face 'quick-latex-current-target)
-                (setq index (if (eq dir 'down) (1+ index) (1- index)))
+                (setq index (if (eq dir 'forward) (1+ index) (1- index)))
                 (when (= index 0)
-                  (if (eq dir 'down) (setq index 1) (setq index -1)))
+                  (if (eq dir 'forward) (setq index 1) (setq index -1)))
                 (message (concat instr (funcall count-fn index) ctxt))
                 (if (or only-label between-braces)
                     (progn (delete-region b (point))
@@ -292,8 +299,8 @@ can be repeated as much as needed to target the desired
                           (goto-char (nth 2 res))
                           (when (invisible-p (nth 2 res)) (outline-show-entry))
                           (delete-region b e))
-                      (pr (setq dir 'up))
-                      (nx (setq dir 'down))
+                      (pr (setq dir 'backward))
+                      (nx (setq dir 'forward))
                       (t (setq reading-chars nil)
                          (when (and (characterp ch)
                                     (eq 'self-insert-command
@@ -315,7 +322,7 @@ Only the tag string is inserted regardless of the value of
 ONLY-LABEL if `quick-latex-ref-only-label-if-in-argument' is
 non-nil and point is inside the argument of a \"\\ref{}\" macro."
   (interactive "P")
-  (quick-latex-ref 'up only-label))
+  (quick-latex-ref 'backward only-label))
 
 (defun quick-latex-ref-next (&optional only-label)
   "Call `quick-latex-ref' starting from the first label after point.
@@ -328,7 +335,7 @@ Only the tag string is inserted regardless of the value of
 ONLY-LABEL if `quick-latex-ref-only-label-if-in-argument' is
 non-nil and point is inside the argument of a \"\\ref{}\" macro."
   (interactive "P")
-  (quick-latex-ref 'down only-label))
+  (quick-latex-ref 'forward only-label))
 
 (provide 'quick-latex-ref)
 
